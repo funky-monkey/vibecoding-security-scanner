@@ -100,6 +100,7 @@ Work through every category. Mark each item as ✅ PASS, ❌ FAIL, or ⚠️ REV
 - [ ] Policies must use `auth.uid()` checks, not just boolean `true`
 - [ ] For Firebase: no rule set to `allow read, write: if true;` in production
 - [ ] Test by querying as anonymous user — should return zero rows
+- [ ] **Frontend must never access the database directly** — all data access must go through server-side API routes or server functions; client-side SDK calls with the anon/service key bypass all server-side controls even when RLS is enabled
 
 #### C8 — Session Hijacking
 - [ ] Verify session tokens are sufficiently random (not guessable/sequential)
@@ -205,6 +206,7 @@ Platform config locations:
 - [ ] Internal errors are logged server-side only
 - [ ] No database errors, file paths, or framework version info leaked to clients
 - [ ] `try/catch` blocks in API routes return consistent, non-descriptive error shapes
+- [ ] No `console.log()`, `console.debug()`, `console.info()`, or `debugger` statements left in production code — these leak internal state, tokens, and PII to the browser console; search for them explicitly and verify build pipeline strips them
 
 #### M2 — Insecure Cookies
 - [ ] All auth cookies set with `HttpOnly` flag (no JS access)
@@ -274,6 +276,7 @@ Platform config locations:
 - [ ] TLS certificate valid and auto-renewing
 - [ ] HSTS header set (see H3)
 - [ ] No mixed content (see M7)
+- [ ] TLS 1.2 minimum enforced — TLS 1.0 and TLS 1.1 must be disabled; verify with `nmap --script ssl-enum-ciphers` or SSL Labs (ssllabs.com/ssltest)
 
 #### BP5 — Least Privilege
 - [ ] Database users have only the permissions they need (no `SUPERUSER` for app)
@@ -382,6 +385,66 @@ Platform config locations:
 - [ ] AI-generated code reviewed for CVE-2025-48757 pattern: Supabase tables created without RLS (affects 170+ Lovable apps)
 - [ ] AI-suggested secret placeholder values (e.g., `"your-api-key-here"`) never committed — treat as a real secret leak if they reach git
 - [ ] Post-session: review what sensitive context was shared with AI during the session
+
+#### ADV11 — OWASP LLM Top 10 (2025) — apply when the codebase integrates any LLM/AI API
+
+Only check this section if the codebase calls an LLM API (OpenAI, Anthropic, Gemini, etc.) or uses an AI SDK. Skip if no LLM integration is present.
+
+**LLM01 — Prompt Injection**
+- [ ] User-supplied content is never directly concatenated into system prompts without sanitization
+- [ ] LLM inputs are filtered to detect and block injection attempts (`ignore previous instructions`, role-switching phrases)
+- [ ] LLM outputs are validated before being acted upon — do not execute LLM-generated code or commands without review
+- [ ] Constrain model behavior with explicit system prompt instructions and output format requirements
+
+**LLM02 — Sensitive Information Disclosure**
+- [ ] LLM training data and fine-tuning datasets are sanitized — no PII, credentials, or internal docs
+- [ ] Strict access controls on what data can be retrieved and injected into LLM context (RAG pipelines, function call results)
+- [ ] LLM API responses are not passed directly to the client without filtering — strip internal metadata
+
+**LLM03 — Supply Chain**
+- [ ] LLM providers and model versions are pinned and vetted — not pulled from unknown sources
+- [ ] Third-party LLM plugins, tools, and agents are audited before integration
+- [ ] Maintain an inventory of all LLM components: model, SDK version, plugins, vector stores
+
+**LLM04 — Data and Model Poisoning**
+- [ ] Data origins tracked for any content fed into LLM context or used for fine-tuning
+- [ ] LLM outputs validated against expected schema/format — anomaly detection for unexpected responses
+- [ ] RAG pipelines: validate retrieved documents before injecting into prompt context
+- [ ] Sandboxing applied to LLM-driven agents that take actions on external systems
+
+**LLM05 — Improper Output Handling**
+- [ ] LLM outputs treated as untrusted user input — never passed to `eval()`, `exec()`, shell commands, or database queries
+- [ ] Encode LLM output before rendering in the UI (same rules as user-generated content — XSS risk)
+- [ ] Apply zero-trust to all LLM-generated content: validate, sanitize, and restrict before acting on it
+- [ ] Follow OWASP ASVS input validation guidelines for all LLM output paths
+
+**LLM06 — Excessive Agency**
+- [ ] LLM agents have only the minimum permissions needed — not admin/write access by default
+- [ ] High-impact actions triggered by LLM (sending emails, modifying data, calling external APIs) require explicit human approval
+- [ ] Limit the number of tools/functions exposed to the LLM — do not give it access to capabilities it doesn't need
+- [ ] Log all LLM-initiated actions for audit
+
+**LLM07 — System Prompt Leakage**
+- [ ] System prompt does not contain API keys, internal URLs, credentials, or business logic that should stay private
+- [ ] Security controls are enforced in application code independently — never rely on the system prompt as the only guard
+- [ ] Test: prompt the model to reveal its system prompt — if it does, harden the prompt and add guardrails
+
+**LLM08 — Vector and Embedding Weaknesses**
+- [ ] Fine-grained access controls on vector store: users can only retrieve vectors they are authorized to access
+- [ ] Validate sources of data before ingesting into vector/embedding stores — poisoned documents can manipulate retrieval
+- [ ] Separate vector namespaces for different user tenants or data sensitivity levels
+
+**LLM09 — Misinformation**
+- [ ] Retrieval-Augmented Generation (RAG) used to ground responses in verified data sources rather than pure model knowledge
+- [ ] Human oversight implemented for high-stakes LLM outputs (medical, legal, financial, security advice)
+- [ ] Automatic validation mechanisms check LLM outputs against known-good sources where possible
+- [ ] Users informed that outputs are AI-generated and may be incorrect
+
+**LLM10 — Unbounded Consumption**
+- [ ] Rate limiting applied to all LLM API call paths — per user and per IP
+- [ ] Input length validated and capped before sending to LLM (prevent prompt stuffing / token exhaustion)
+- [ ] LLM API costs monitored with budget alerts — unexpected spikes indicate abuse
+- [ ] Timeouts set on all LLM API calls; never allow unbounded waiting
 
 ---
 
@@ -794,7 +857,7 @@ Rules for populating the todo list:
 ---
 
 *Report generated by the Vibe Coding Security Scanner skill.*
-*Sources: OWASP Top 10 · vibeappscanner.com (checklists, guides, best-practices, glossary, sample-report, tools, safety-guides, vibe-coding-security) · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757*
+*Sources: OWASP Top 10 · OWASP LLM Top 10 (2025) · Cloud Security Alliance Secure Vibe Coding Guide · vibeappscanner.com (checklists, guides, best-practices, glossary, sample-report, tools, safety-guides, vibe-coding-security) · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757*
 
 ---
 
