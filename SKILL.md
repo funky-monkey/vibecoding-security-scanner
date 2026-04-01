@@ -15,6 +15,8 @@ When invoked:
 1. Identify the codebase root (ask if unclear)
 2. Work through **Phase 1 → Phase 2 → Phase 3** in order
 3. Output the full **Security Report** at the end
+4. Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` in the project root
+5. Always append `SECURITY-REPORT.md` and `SECURITY-REPORT.html` to the project's `.gitignore` (create `.gitignore` if it does not exist) — the report contains exploit PoC commands and must not be committed
 
 ---
 
@@ -640,9 +642,20 @@ REGRESSION RISK: [could fixing this break existing functionality?]
 - After each fix, verify no new vulnerabilities were introduced
 - Re-run affected checklist items to confirm resolution
 
+The report must include a **Fix Todo List** (see OUTPUT section). This list is designed to be fed directly to an AI coding assistant as a follow-up prompt. Each item must be self-contained: file path, line number, what to change, and why — so the AI can act on it without needing the full report context.
+
 ---
 
 ## OUTPUT: SECURITY REPORT
+
+**Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` in the project root.**
+
+After saving, append these two lines to the project's `.gitignore` (create the file if it does not exist):
+```
+SECURITY-REPORT.md
+SECURITY-REPORT.html
+```
+The report contains working exploit commands and must never be committed to version control.
 
 Produce the report in this exact format:
 
@@ -651,7 +664,7 @@ Produce the report in this exact format:
 # Security Audit Report
 **Project:** [name]
 **Date:** [today]
-**Auditor:** Claude (AI-assisted)
+**Auditor:** vibecodingscanner
 **Codebase:** [root path]
 
 ## Executive Summary
@@ -714,6 +727,34 @@ Based on findings, recommend from:
 1. [Most critical fix]
 2. [Second most critical]
 3. [...]
+
+---
+
+## Fix Todo List
+
+> This section is designed to be copy-pasted directly into an AI coding assistant as a self-contained fixing prompt. Each item includes everything the AI needs to act: the file, the line, what is wrong, and exactly what to change.
+
+Paste the following into your AI assistant to fix all findings:
+
+```
+Fix the following security vulnerabilities in this codebase. Work through them in order. For each item: make only the change described, verify it does not break existing functionality, and move to the next.
+
+[ ] CRIT-1 | src/[file]:[line] | [one-line description of what to change and why]
+[ ] CRIT-2 | src/[file]:[line] | [one-line description]
+[ ] HIGH-1 | src/[file]:[line] | [one-line description]
+[ ] HIGH-2 | src/[file]:[line] | [one-line description]
+[ ] MED-1  | src/[file]:[line] | [one-line description]
+...
+
+After all items are complete, confirm each fix with a short summary of the change made.
+```
+
+Rules for populating the todo list:
+- One line per finding — no multi-line descriptions
+- Include the exact file path and line number
+- State the change imperatively: "Replace X with Y", "Add auth guard at top of handler", "Change condition from A to B"
+- Order by severity: Critical first, then High, then Medium
+- If a fix requires creating a new shared helper (e.g. `requireAdminAuth`), list that as the first item so subsequent items can reference it
 
 ---
 
