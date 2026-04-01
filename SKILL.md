@@ -15,8 +15,8 @@ When invoked:
 1. Identify the codebase root (ask if unclear)
 2. Work through **Phase 1 → Phase 2 → Phase 3** in order
 3. Output the full **Security Report** at the end
-4. Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` in the project root
-5. Always append `SECURITY-REPORT.md` and `SECURITY-REPORT.html` to the project's `.gitignore` (create `.gitignore` if it does not exist) — the report contains exploit PoC commands and must not be committed
+4. Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` inside a `_security/` folder in the project root (create the folder if it does not exist)
+5. Always append `_security/` to the project's `.gitignore` (create `.gitignore` if it does not exist) — the folder contains exploit PoCs and must never be committed
 
 ---
 
@@ -648,14 +648,13 @@ The report must include a **Fix Todo List** (see OUTPUT section). This list is d
 
 ## OUTPUT: SECURITY REPORT
 
-**Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` in the project root.**
+**Always save the report as both `_security/SECURITY-REPORT.md` and `_security/SECURITY-REPORT.html` (create the `_security/` folder if it does not exist).**
 
-After saving, append these two lines to the project's `.gitignore` (create the file if it does not exist):
+After saving, append this line to the project's `.gitignore` (create the file if it does not exist):
 ```
-SECURITY-REPORT.md
-SECURITY-REPORT.html
+_security/
 ```
-The report contains working exploit commands and must never be committed to version control.
+The `_security/` folder contains working exploit commands and attack payloads — it must never be committed to version control.
 
 Produce the report in this exact format:
 
@@ -727,6 +726,33 @@ Based on findings, recommend from:
 1. [Most critical fix]
 2. [Second most critical]
 3. [...]
+
+---
+
+## Exploit Chains
+
+> Run any line below in Claude Code to generate a full attack chain for that finding — JS payload, HTML bait page, curl commands, and receiver setup where applicable.
+
+```
+/vibecodingexploits [FINDING-ID] [exploit-type] [url] [param?]
+```
+
+For each finding that has a meaningful exploit chain (XSS, CSRF, open redirect, JWT, SSRF, command injection, clickjacking, WebSocket hijacking, session replay), generate one ready-to-copy line. Format:
+
+```
+/vibecodingexploits CRIT-1  open-endpoint    https://[base]/api/admin/users
+/vibecodingexploits HIGH-4  xss-stored       https://[base]/blog/[slug]      content
+/vibecodingexploits HIGH-5  csrf             https://[base]/api/admin/posts
+/vibecodingexploits HIGH-6  open-redirect    https://[base]/auth/callback    to_path
+/vibecodingexploits ADV1    jwt-none         https://[base]/api/admin/me
+/vibecodingexploits ADV3    websocket-hijack wss://[base]/ws
+/vibecodingexploits ADV5    ssrf             https://[base]/api/fetch         url
+/vibecodingexploits C5      cmd-injection    https://[base]/api/run           cmd
+/vibecodingexploits M6      clickjacking     https://[base]/admin/settings
+/vibecodingexploits C8      session-replay   https://[base]/api/me
+```
+
+Only include lines for findings actually present in this scan. Skip exploit types not applicable to the codebase.
 
 ---
 
