@@ -2,7 +2,7 @@
 
 A security audit skill for AI-assisted ("vibe-coded") web application codebases.
 
-It works through 30+ vulnerability categories — from unauthenticated API routes and SQL injection to missing security headers and weak cryptography — and produces a severity-ranked report with working proof-of-concept exploit commands and step-by-step remediation guidance.
+It works through 30+ vulnerability categories, from unauthenticated API routes and SQL injection to missing security headers and weak cryptography, and produces a severity-ranked report with working proof-of-concept exploit commands and step-by-step remediation guidance.
 
 ---
 
@@ -55,10 +55,10 @@ It works through 30+ vulnerability categories — from unauthenticated API route
 - Open redirect
 - Email security (SPF, DKIM, DMARC)
 - DNS security
-- AI prompt security (CVE-2025-48757 pattern — tables without RLS)
+- AI prompt security (CVE-2025-48757 pattern, tables without RLS)
 
 ### Platform-specific checks
-Supabase · Firebase · Vercel · Netlify · Next.js · Lovable · Bolt.new · Replit · v0.dev · Cursor · GitHub Copilot · MongoDB · PostgreSQL · Railway · Render · Fly.io · Bubble · Webflow · Framer · and more.
+Supabase, Firebase, Vercel, Netlify, Next.js, Lovable, Bolt.new, Replit, v0.dev, Cursor, GitHub Copilot, MongoDB, PostgreSQL, Railway, Render, Fly.io, Bubble, Webflow, Framer, and more.
 
 ---
 
@@ -69,55 +69,63 @@ For every finding the report includes:
 - **Severity** (Critical / High / Medium / Low)
 - **File path and line number**
 - **Vulnerable code snippet**
-- **Exploit scenario** — plain-English explanation of how an attacker abuses this
-- **Proof of Concept** — working `curl` command or script using your app's actual URL, with the expected response shown
-- **Fix** — specific remediation with code examples
+- **Exploit scenario** - plain-English explanation of how an attacker abuses this
+- **Proof of Concept** - working `curl` command or script using your app's actual URL, with the expected response shown
+- **Fix** - specific remediation with code examples
 
 ---
 
 ## Installation
 
-### Prerequisites
-- An AI coding assistant that supports skills/custom prompts (e.g. any tool that reads from `~/.claude/skills/`)
+This is a skill file for **Claude Code** (the AI coding assistant CLI by Anthropic). Install Claude Code first, then drop the skill file into the right directory and it becomes available as a slash command.
 
-### Install the skill
+### Step 1 - Install Claude Code
 
 ```bash
-# Create the skills directory if it doesn't exist
-mkdir -p ~/.claude/skills/vibecodingscanner
+npm install -g @anthropic-ai/claude-code
+```
 
-# Download the skill
-curl -fsSL https://raw.githubusercontent.com/funky-monkey/vibecoding-security-scanner/main/SKILL.md \
+Or download the desktop app from [claude.ai/code](https://claude.ai/code).
+
+### Step 2 - Install the skill
+
+**Option A: one-liner**
+
+```bash
+mkdir -p ~/.claude/skills/vibecodingscanner && \
+  curl -fsSL https://raw.githubusercontent.com/funky-monkey/vibecoding-security-scanner/main/SKILL.md \
   -o ~/.claude/skills/vibecodingscanner/SKILL.md
 ```
 
-Or clone the repo and symlink:
+**Option B: clone and symlink**
 
 ```bash
-git clone https://github.com/funky-monkey/vibecoding-security-scanner.git
+git clone https://github.com/funky-monkey/vibecoding-security-scanner.git ~/vibecoding-security-scanner
 mkdir -p ~/.claude/skills/vibecodingscanner
-ln -s "$(pwd)/vibecoding-security-scanner/SKILL.md" ~/.claude/skills/vibecodingscanner/SKILL.md
+ln -s ~/vibecoding-security-scanner/SKILL.md ~/.claude/skills/vibecodingscanner/SKILL.md
 ```
 
-Verify it's installed:
+Cloning and symlinking means you can `git pull` to get updates without reinstalling.
+
+### Step 3 - Verify
 
 ```bash
 ls ~/.claude/skills/vibecodingscanner/SKILL.md
 ```
 
+If the file is there, the skill is ready.
+
 ---
 
 ## Usage
 
-### Basic scan — your own codebase
-
-Open your AI assistant in the project root and type:
+Open Claude Code inside your project root (or any directory) and run:
 
 ```
 /vibecodingscanner
 ```
 
-The skill will ask for the codebase path if it's not clear from context, then work through Phase 1 → Phase 2 → Phase 3 automatically.
+The skill will ask for the codebase path if needed, then work through Phase 1, Phase 2, and Phase 3 automatically.
 
 ### Scan a specific directory
 
@@ -125,7 +133,7 @@ The skill will ask for the codebase path if it's not clear from context, then wo
 scan /Users/you/projects/my-nextjs-app with vibecodingscanner
 ```
 
-### Scan with a known base URL (for PoC exploit links)
+### Scan with a known base URL
 
 Providing your deployment URL means every exploit example in the report uses your real endpoints as clickable links:
 
@@ -139,7 +147,7 @@ scan /Users/you/projects/my-app using vibecodingscanner, base URL is https://my-
 scan /Users/you/projects/my-app with vibecodingscanner and save the report as SECURITY-REPORT.md and SECURITY-REPORT.html in the project root
 ```
 
-### Example prompt (full)
+### Full example prompt
 
 ```
 Use vibecodingscanner to audit /Users/you/projects/my-nextjs-app.
@@ -151,8 +159,8 @@ Save the report as both SECURITY-REPORT.md and SECURITY-REPORT.html in the proje
 
 ## Example report output
 
-~~~markdown
-# Security Audit Report — my-nextjs-app
+~~~md
+# Security Audit Report - my-nextjs-app
 
 Date: 2026-04-01
 Auditor: vibecodingscanner
@@ -161,36 +169,34 @@ Base URL: https://my-app.vercel.app
 ## Summary
 | Severity    | Count |
 |-------------|-------|
-| 🔴 Critical | 3     |
-| 🟠 High     | 5     |
-| 🟡 Medium   | 4     |
-| ✅ Passing  | 12    |
+| Critical    | 3     |
+| High        | 5     |
+| Medium      | 4     |
+| Passing     | 12    |
 
----
-
-### CRIT-1 — All Admin API Routes Are Unauthenticated
-- **Location:** src/app/api/admin/users/route.ts:4
-- **Evidence:** `export async function GET() { const admin = getAdminClient() ...`
-- **Exploit PoC:**
+### CRIT-1 - All Admin API Routes Are Unauthenticated
+- Location: src/app/api/admin/users/route.ts:4
+- Evidence: export async function GET() { const admin = getAdminClient() ...
+- Exploit PoC:
     curl https://my-app.vercel.app/api/admin/users
-    # Returns: [{"id":"...","email":"admin@example.com","rol":"beheerder"}]
-- **Fix:** Add a requireAdminAuth() guard at the top of every admin route.
+    Returns: [{"id":"...","email":"admin@example.com","role":"admin"}]
+- Fix: Add a requireAdminAuth() guard at the top of every admin route.
 ~~~
 
 ---
 
 ## Three-phase methodology
 
-The scanner follows a strict three-phase process — it never modifies code before completing the full analysis:
+The scanner follows a strict three-phase process and never modifies code before completing the full analysis.
 
-**Phase 1 — Systematic Analysis**
+**Phase 1 - Systematic Analysis**
 Reads every relevant file. For each item in the checklist, records the file path, line number, vulnerable snippet, and exploitability assessment.
 
-**Phase 2 — Risk Planning**
-Documents every failing check with: evidence, exploit scenario, working PoC, fix steps, and regression risk.
+**Phase 2 - Risk Planning**
+Documents every failing check with evidence, exploit scenario, working PoC, fix steps, and regression risk.
 
-**Phase 3 — Remediation** *(optional, run separately)*
-Applies only the fixes identified — no cosmetic changes, no scope creep.
+**Phase 3 - Remediation** *(optional, run separately)*
+Applies only the fixes identified. No cosmetic changes, no scope creep.
 
 ---
 
@@ -199,11 +205,11 @@ Applies only the fixes identified — no cosmetic changes, no scope creep.
 This checklist is compiled from:
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [vibeappscanner.com](https://vibeappscanner.com) — vulnerability library, checklists, guides, best practices
+- [vibeappscanner.com](https://vibeappscanner.com) - vulnerability library, checklists, guides, best practices
 - [astoj/vibe-security](https://github.com/astoj/vibe-security)
 - [Replit Vibe Code Security Checklist](https://docs.replit.com/tutorials/vibe-code-security-checklist)
 - [namanyayg security audit prompt](https://gist.github.com/namanyayg/ed12fa79f535d0294f4873be73e7c69b)
-- CVE-2025-48757 (Supabase tables without RLS — affected 170+ Lovable apps)
+- CVE-2025-48757 (Supabase tables without RLS, affected 170+ Lovable apps)
 
 ---
 
