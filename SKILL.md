@@ -11,10 +11,19 @@ You are performing a **professional security audit** of an AI-assisted / vibe-co
 
 ## HOW TO USE THIS SKILL
 
-When invoked:
-1. Identify the codebase root (ask if unclear)
-2. Work through **Phase 1 → Phase 2 → Phase 3** in order
-3. Output the full **Security Report** at the end
+### Before you start — always ask these two questions first
+
+Before doing any analysis, ask the user:
+
+1. **Codebase path** — "What is the path to the codebase you want me to scan?" (skip if already provided in the invocation)
+2. **Live / staging URL** — "What is the live or staging URL of this app?" (e.g. `https://my-app.vercel.app`) — used for clickable links and working curl PoCs in the report; answer "unknown" to skip
+
+Wait for both answers before proceeding to Phase 1.
+
+### Then proceed in order:
+1. Use the confirmed codebase path as the root for all file reads
+2. Work through **Phase 1 → Phase 2 → Phase 3**
+3. Output the full **Security Report** at the end, using the provided URL as `BASE_URL` throughout
 4. Always save the report as both `SECURITY-REPORT.md` and `SECURITY-REPORT.html` inside a `_security/` folder in the project root (create the folder if it does not exist)
 5. Always append `_security/` to the project's `.gitignore` (create `.gitignore` if it does not exist) — the folder contains exploit PoCs and must never be committed
 
