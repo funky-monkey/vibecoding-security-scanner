@@ -625,7 +625,7 @@ FILE: [path:line]
 SEVERITY: [CRITICAL / HIGH / MEDIUM / LOW]
 EVIDENCE: [exact code snippet]
 EXPLOIT SCENARIO: [how an attacker would exploit this]
-EXPLOIT POC: [working curl command or code snippet that demonstrates the attack]
+EXPLOIT POC: [working curl command or code snippet that demonstrates the attack. For open/unauthenticated endpoints, always start with a GET listing request that fetches all records first — this proves the endpoint is open and shows real data before escalating to write/delete examples. Only add write or delete examples after the read PoC.]
 FIX: [specific remediation steps]
 REGRESSION RISK: [could fixing this break existing functionality?]
 ```
@@ -651,7 +651,7 @@ Produce the report in this exact format:
 # Security Audit Report
 **Project:** [name]
 **Date:** [today]
-**Auditor:** vibecodingscanner
+**Auditor:** Claude (AI-assisted)
 **Codebase:** [root path]
 
 ## Executive Summary
@@ -674,7 +674,7 @@ Produce the report in this exact format:
 - **Location:** `file:line`
 - **Description:** What it is and why it matters
 - **Exploit Scenario:** How an attacker abuses this
-- **Proof of Concept:** Working curl command or minimal script that demonstrates the attack. Use the actual base URL of the app if known. Commands must be copy-pasteable and correct — not pseudocode. Include the expected response so the reader knows what a successful exploit looks like.
+- **Proof of Concept:** Working curl command or minimal script that demonstrates the attack. Use the actual base URL of the app if known. Commands must be copy-pasteable and correct — not pseudocode. Include the expected response so the reader knows what a successful exploit looks like. For open or unauthenticated endpoints, always lead with a GET listing request (e.g. `curl GET /api/admin/users`) that fetches all records — this confirms the endpoint is open and shows real data exposure before showing any write or delete examples.
 - **Fix:** Step-by-step remediation with code examples
 
 ---
