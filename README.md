@@ -151,7 +151,7 @@ Save the report as both SECURITY-REPORT.md and SECURITY-REPORT.html in the proje
 
 ## Example report output
 
-```
+~~~markdown
 # Security Audit Report — my-nextjs-app
 
 Date: 2026-04-01
@@ -159,12 +159,12 @@ Auditor: vibecodingscanner
 Base URL: https://my-app.vercel.app
 
 ## Summary
-| Severity  | Count |
-|-----------|-------|
-| 🔴 Critical | 3   |
-| 🟠 High     | 5   |
-| 🟡 Medium   | 4   |
-| ✅ Passing  | 12  |
+| Severity    | Count |
+|-------------|-------|
+| 🔴 Critical | 3     |
+| 🟠 High     | 5     |
+| 🟡 Medium   | 4     |
+| ✅ Passing  | 12    |
 
 ---
 
@@ -172,12 +172,10 @@ Base URL: https://my-app.vercel.app
 - **Location:** src/app/api/admin/users/route.ts:4
 - **Evidence:** `export async function GET() { const admin = getAdminClient() ...`
 - **Exploit PoC:**
-  ```bash
-  curl https://my-app.vercel.app/api/admin/users
-  # Returns: [{"id":"...","email":"admin@example.com","rol":"beheerder"}]
-  ```
+    curl https://my-app.vercel.app/api/admin/users
+    # Returns: [{"id":"...","email":"admin@example.com","rol":"beheerder"}]
 - **Fix:** Add a requireAdminAuth() guard at the top of every admin route.
-```
+~~~
 
 ---
 
