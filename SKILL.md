@@ -456,6 +456,10 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] `ALTER TABLE x ENABLE ROW LEVEL SECURITY` present for ALL tables
 - [ ] Separate RLS policies for SELECT, INSERT, UPDATE, DELETE on each table
 - [ ] Policies use `(select auth.uid())` pattern (not just `auth.uid()` — performance matters at scale)
+- [ ] **`WITH CHECK` clause present on INSERT and UPDATE policies** — `USING` only controls reads; without `WITH CHECK`, users can insert/update rows they cannot later read, causing silent data corruption
+- [ ] Test: query each table as an unauthenticated user (anon key, no session) — should return `[]` / `null`; if it returns data, RLS is missing or has `USING (true)` policy
+- [ ] Related/joined tables also have RLS — an unprotected related table leaks data by inference even if the main table is locked down
+- [ ] **Realtime subscriptions respect RLS** — verify RLS is enabled on any table used with Supabase Realtime; realtime channels automatically apply RLS policies but only if RLS is enabled on the table
 - [ ] `service_role` key never appears in any client-side file
 - [ ] Anon key is acceptable in frontend; service_role key is never acceptable
 - [ ] Email confirmation enabled in Auth settings
@@ -467,14 +471,16 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 
 #### PS-FIREBASE — Firebase Projects
 - [ ] No rule: `allow read, write: if true;` in any Firestore/Realtime DB ruleset
-- [ ] All rules check `request.auth != null` before granting access
-- [ ] Rules validate data structure and field types, not just auth
-- [ ] Rules tested with Firebase Emulator before deployment
-- [ ] Firebase Admin SDK / service account credentials are server-only (never in frontend)
-- [ ] Client-side Firebase config (apiKey, projectId) is acceptable to expose
-- [ ] API key restricted in Google Cloud Console to only needed services
+- [ ] All rules check `request.auth != null` before granting access — note: being authenticated ≠ being authorized; rules must also check `request.auth.uid == resource.data.userId`
+- [ ] Rules validate data structure and field types, not just auth (`keys().hasAll(...)`, field type checks)
+- [ ] Rules tested with Firebase Emulator before deployment; also test with Rules Playground
+- [ ] Firebase Admin SDK / service account JSON credentials are server-only (never in frontend)
+- [ ] Client-side Firebase config (apiKey, projectId) is acceptable to expose — security comes from rules, not the config
+- [ ] API key restricted in Google Cloud Console to only needed Firebase services
+- [ ] **Email enumeration protection** enabled in Firebase Auth settings — prevents disclosure of which email addresses are registered (reduces phishing and account harvesting risk)
 - [ ] Email verification enabled for user accounts
-- [ ] Storage rules restrict file types and sizes
+- [ ] **Firebase Storage bucket rules** configured — Storage has separate rules from Firestore; AI tools commonly set up Firestore rules but forget Storage, leaving buckets open
+- [ ] Storage rules restrict file types, sizes, and require authentication
 - [ ] App Check configured to prevent unauthorized API usage
 
 #### PS-MONGODB — MongoDB / Atlas Projects
@@ -491,24 +497,29 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] VPC peering used for cloud deployments (no public endpoint)
 
 #### PS-VERCEL — Vercel Deployments
-- [ ] `NEXT_PUBLIC_` prefix only on variables that should be client-visible
-- [ ] Production secrets NOT shared with Preview or Development environments
-- [ ] Preview deployments password-protected (Vercel Authentication enabled)
+- [ ] `NEXT_PUBLIC_` prefix only on variables that should be client-visible — removing from dashboard does NOT fix already-distributed CDN bundles; rotate the secret immediately
+- [ ] Production secrets scoped to **Production only** — verify they are NOT enabled for Preview or Development environments (a PR with `console.log(process.env.STRIPE_SECRET_KEY)` will expose them)
+- [ ] Preview deployments password-protected (Settings → Deployment Protection → Vercel Authentication)
+- [ ] Preview deployment URLs not indexed by search engines — add `X-Robots-Tag: noindex` header to preview environments (preview URLs leak via Slack/Linear/GitHub PR comments and get indexed)
 - [ ] Preview environments connected to staging DB, NOT production DB
-- [ ] Security headers configured in `vercel.json` or `next.config.js` `headers()`
-- [ ] CORS configured in API routes — not `Access-Control-Allow-Origin: *`
+- [ ] Serverless Function logs reviewed — `console.log(req.body)` in Route Handlers captures passwords/PII/API keys visible to all project members; use `pino` with `redact` or equivalent
+- [ ] Build logs reviewed — `echo $SECRET` or variable expansion in `package.json` scripts prints secret values in Vercel build logs readable by all team members; remove `echo` commands and rotate any exposed values
+- [ ] Security headers configured in `vercel.json` or `next.config.js` `headers()` — CSP must use nonces not `unsafe-inline` for meaningful XSS protection
+- [ ] CORS configured in API routes — not `Access-Control-Allow-Origin: *`; never reflect the incoming `Origin` header blindly
 - [ ] Rate limiting on API routes (Vercel native or custom middleware)
 - [ ] Function timeout set to prevent timeout-based DoS
 - [ ] Team member access to production secrets audited
-- [ ] Source maps disabled for production builds
+- [ ] Source maps disabled for production builds (`productionBrowserSourceMaps: false`)
 
 #### PS-NETLIFY — Netlify Deployments
-- [ ] `_headers` file configured in publish directory with security headers
-- [ ] Build-time variables vs. runtime function variables understood and separated
+- [ ] `_headers` file configured in publish directory with security headers (or `netlify.toml` `[[headers]]` section)
+- [ ] **Build-time vs. runtime env vars understood:** secrets used at build time get baked into static assets — only put secrets in environment variables if they will be used by Netlify Functions at runtime, not during the build step
+- [ ] Mark sensitive variables as "sensitive" in the Netlify dashboard to prevent them from being readable by site members
 - [ ] No sensitive secrets printed in build logs or bundled into frontend
 - [ ] Function endpoints authenticated before accepting sensitive operations
 - [ ] Scheduled functions run with minimum required permissions
-- [ ] Deploy preview URLs not exposing production data
+- [ ] **Deploy preview URLs not publicly indexed** — Netlify previews can leak via Slack/GitHub comments; configure branch deploy access controls
+- [ ] Deploy previews scoped to staging DB — not production DB
 - [ ] Netlify Identity configured for access control where needed
 
 #### PS-POSTGRES — PostgreSQL (direct / Neon / PlanetScale / Turso / Upstash)
@@ -540,7 +551,8 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] Databases on private service (not public-facing)
 - [ ] Build logs reviewed to ensure secrets are not printed during build
 - [ ] Internal services communicate via Render's private network
-- [ ] Auto-deploy to production gated (consider manual deploy requirement)
+- [ ] **Auto-deploy to production disabled** — Render defaults to auto-deploying every push; disable auto-deploy for production services and use manual promotion to prevent accidental production deployments
+- [ ] **Environment groups not over-shared** — production secrets should be in a group that is NOT shared with staging/preview services; a group shared across environments exposes prod secrets to contractor PRs and staging builds
 
 #### PS-FLYIO — Fly.io Deployments
 - [ ] Secrets set via `fly secrets set` — never committed to git
@@ -640,14 +652,68 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] Preview deployment URLs not publicly indexed
 - [ ] Third-party visual integration credentials moved to env vars
 
-#### PS-AI-ASSISTANTS — AI Code Assistants (Copilot, Cody, Tabnine, etc.)
-- [ ] **Copilot/Tabnine:** Never accept a suggestion that contains a literal secret value — rotate immediately if one was accepted and committed
-- [ ] **Copilot:** If Copilot suggests a secret value, assume it may be from training data — never use it
-- [ ] **Cody:** Repository indexing scope reviewed — sensitive repos excluded from Sourcegraph context
-- [ ] **Tabnine:** Local-only model mode enabled for sensitive/proprietary code
-- [ ] **All:** AI-generated password hashing code verified to use bcrypt/argon2 (not MD5/SHA1)
-- [ ] **All:** AI-generated JWT code verified to check signature and expiry server-side
-- [ ] **All:** File exclusions configured (`.env`, `credentials.json`, `*.pem`) in IDE plugin settings
+#### PS-CURSOR — Cursor IDE Projects
+- [ ] **CVE-2025-54135 / CVE-2025-54136:** Cursor has published RCEs via prompt injection — keep IDE fully up to date; do NOT open untrusted repositories without reviewing their content first
+- [ ] `.cursorignore` file configured to exclude `.env*`, `credentials.json`, `*.pem`, `secrets/` from AI context
+- [ ] **"Yolo mode" / auto-run disabled** — Cursor's agent can execute shell commands without confirmation; verify this is off in settings for any sensitive work
+- [ ] MCP servers audited: only install from trusted sources; MCP servers can execute arbitrary code on your machine via prompt injection from untrusted content
+- [ ] Privacy Mode enabled for any sensitive or proprietary code (disables code telemetry)
+- [ ] All AI-suggested authentication code reviewed before accepting — Cursor inherits unsafe patterns from existing codebase context
+- [ ] Never accept a suggestion containing a literal secret value; if accepted and committed, rotate immediately
+- [ ] `.cursorrules` file includes instruction: "Never hardcode API keys or secrets in code"
+- [ ] Husky + gitleaks pre-commit hook in place (Cursor may suggest patterns from training data that include leaked keys)
+- [ ] Run security scan before deployment: `npx cursor-security-scan` or equivalent
+
+#### PS-COPILOT — GitHub Copilot
+- [ ] Review **all** suggestions before accepting — ~30–40% of AI-generated code suggestions contain security issues
+- [ ] Never accept a Copilot suggestion containing a literal secret value — if Copilot suggests a secret, it may come from training data; rotate immediately if committed
+- [ ] Authentication code: do NOT trust Copilot for auth implementation without manual review — check session handling, password hashing (must be bcrypt/argon2, not MD5/SHA1), JWT verification
+- [ ] SQL and database queries: verify all Copilot-generated queries use parameterized statements
+- [ ] `.gitignore` is comprehensive before enabling Copilot (excludes `.env*`, `credentials.json`, `*.pem`)
+- [ ] Exclude secret files from Copilot context in IDE settings
+- [ ] Use Copilot for Business/Enterprise for sensitive codebases (stronger data retention controls)
+- [ ] Audit codebase periodically for accidentally committed secrets originating from Copilot suggestions
+
+#### PS-CLAUDE-CODE — Claude Code (Anthropic CLI)
+- [ ] Review tool permissions carefully — Claude Code can read/write files and execute commands; limit scope to project directory
+- [ ] Use command allowlists in `.claude/settings.json` to restrict which shell commands Claude Code can run
+- [ ] Never share terminal session with secrets visible in environment variables or recent history when Claude Code is active
+- [ ] Do NOT run Claude Code in production environments — agent can execute git operations, run migrations, and call APIs
+- [ ] Review all generated code before committing — especially authentication implementations and database queries
+- [ ] `.gitignore` configured to exclude `.env*`, `credentials.json`, `*.pem` before starting sessions
+- [ ] Review git operations before confirming (e.g., do not let agent push to remote without review)
+- [ ] Audit conversation history: sensitive context (keys, connection strings) pasted into chat is sent to Anthropic's API
+- [ ] MCP servers installed in Claude Code audited — only install trusted, necessary servers
+- [ ] Use version control checkpoints (commit before major agent operations) for easy rollback
+
+#### PS-CODY — Sourcegraph Cody
+- [ ] Repository indexing scope reviewed — sensitive repos excluded from Sourcegraph context
+- [ ] For HIPAA/FedRAMP regulated environments: use self-hosted Sourcegraph (only major AI assistant with on-premises option — code stays on your infrastructure)
+- [ ] Review all suggestions before accepting — check for hardcoded secrets and SQL injection patterns
+- [ ] Verify AI-generated authentication code manually
+- [ ] `.gitignore` comprehensive before enabling Cody (prevents sensitive files from being indexed)
+- [ ] Configure team permissions to restrict Sourcegraph access to authorized repositories only
+- [ ] Enable audit logging to track who accessed what code context
+
+#### PS-TABNINE — Tabnine
+- [ ] **Local-only model mode enabled** for any sensitive/proprietary code — Tabnine is the only major AI assistant with fully offline operation capability
+- [ ] Review all completions before accepting — check for credential suggestions and insecure patterns
+- [ ] File exclusions configured (`.env`, `credentials.json`, `*.pem`) in IDE plugin settings
+- [ ] For air-gapped/regulated environments: verify Tabnine is configured for local-only inference (no code leaves the machine)
+- [ ] If using team/cloud features: review data retention and telemetry settings
+- [ ] Custom model training (Enterprise): ensure training data is sanitized — no PII, credentials, or internal keys in training corpus
+
+#### PS-AI-ASSISTANTS — AI Code Assistants (general / others)
+- [ ] **All tools:** AI-generated password hashing code verified to use bcrypt/argon2 (not MD5/SHA1)
+- [ ] **All tools:** AI-generated JWT code verified to check signature and expiry server-side
+- [ ] **All tools:** Never accept a suggestion that contains a literal secret value — rotate immediately if one was accepted and committed
+- [ ] **All tools:** File exclusions configured (`.env`, `credentials.json`, `*.pem`) in IDE plugin settings
+- [ ] **Amazon Q Developer:** GCP/AWS IAM permissions granted to Q agent are scoped to minimum required — avoid giving admin/write access
+- [ ] **Gemini Code:** Keep IDE up to date (documented CVE for command execution vulnerability); GCP IAM roles used by Gemini Code must follow least privilege; never hardcode GCP service account credentials
+- [ ] **Trae AI:** Code is sent to ByteDance servers — not suitable for regulated environments (HIPAA, FedRAMP, SOC 2 enterprise requirements); review data handling policy before use
+- [ ] **Devin AI / autonomous agents:** No human-in-the-loop validation = agent may choose insecure dependencies, implement weak auth, or expose endpoints without review; audit all autonomously generated code before deployment
+- [ ] **Augment Code / Cline / OpenAI Codex:** Same AI-code trust rules apply — review auth, DB queries, and secret handling before committing any suggestion
+- [ ] **Emergent (emergent.sh):** Uses Supabase by default; verify RLS is enabled on all tables (same pattern as Lovable CVE-2025-48757); API keys must not appear in generated frontend code
 
 #### PS-NEXTJS — Next.js Applications
 - [ ] `NEXT_PUBLIC_` env vars contain NO secrets
@@ -857,7 +923,7 @@ Rules for populating the todo list:
 ---
 
 *Generated by [vibecoding-security-scanner](https://github.com/funky-monkey/vibecoding-security-scanner)*
-*Sources: OWASP Top 10 · OWASP LLM Top 10 (2025) · Cloud Security Alliance Secure Vibe Coding Guide · vibeappscanner.com · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757*
+*Sources: OWASP Top 10 · OWASP LLM Top 10 (2025) · Cloud Security Alliance Secure Vibe Coding Guide · vibeappscanner.com · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757 · CVE-2025-54135 · CVE-2025-54136*
 
 ---
 
@@ -867,13 +933,14 @@ This skill incorporates checks from vibeappscanner.com's full library of 55 plat
 
 | Category | Platforms Covered |
 |----------|-------------------|
-| AI builders | Lovable, Bolt.new, Replit, v0.dev, Windsurf, Base44, Antigravity |
-| AI assistants | GitHub Copilot, Claude Code, Cursor, Cody, Tabnine, Amazon Q, Gemini Code, Cline, Augment |
+| AI builders (full-stack) | Lovable, Bolt.new, Replit, v0.dev, Windsurf, Base44, Antigravity, Emergent |
+| AI code assistants | GitHub Copilot, Claude Code, Cursor, Sourcegraph Cody, Tabnine, Gemini Code, Amazon Q, Cline, Augment Code, Trae AI, Devin AI, OpenAI Codex |
 | Databases | Supabase, Firebase, MongoDB, PostgreSQL, PlanetScale, Neon, Turso, Upstash |
 | Hosting | Vercel, Netlify, Railway, Render, Fly.io |
-| No-code/Low-code | Bubble, Webflow, Framer, Retool |
+| No-code/Low-code | Bubble, Webflow, Framer, Retool, Wix Harmony, Softr, ToolJet, DronaHQ, UI Bakery, Airtable |
+| Emerging/specialized | Hostinger Horizons, SuperNinja, Tempo Labs, Firebase Studio, FlutterFlow, Glide, Xano, Appwrite, Convex, VibeSDK, Jotform Apps, Orchids |
 
-**Listed in vibeappscanner.com index but pages not yet published (404 at time of writing — check back for updates):**
-Amazon Q, Gemini Code, Cline, Appwrite, Convex, Xano, FlutterFlow, Glide, Trae, Devin, OpenAI Codex, Augment Code, Emergent, Wix Harmony, Hostinger Horizons, Firebase Studio, Softr, ToolJet, DronaHQ, Jotform Apps, UI Bakery, Orchids, VibeSDK, SuperNinja, Tempo Labs
+**Formal checklists not yet published (listed on vibeappscanner.com but return 404 — security Q&A available):**
+Trae AI, Devin AI, OpenAI Codex, Augment Code, Emergent, Wix Harmony, Hostinger Horizons, SuperNinja, Firebase Studio, Tempo Labs, Gemini Code, Softr, ToolJet, DronaHQ, Jotform Apps, UI Bakery, Orchids, VibeSDK, Amazon Q Developer, Cline, Airtable, Appwrite, Convex, Xano, FlutterFlow, Glide
 
-**Key stat:** ~80% of AI-built applications contain at least one exploitable vulnerability at launch (vibeappscanner.com research, 2026).
+**Key stat:** ~80–87% of AI-built applications contain at least one exploitable vulnerability at launch (vibeappscanner.com research, 2026).
