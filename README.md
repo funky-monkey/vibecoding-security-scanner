@@ -2,6 +2,8 @@
 
 A security audit skill for AI-assisted ("vibe-coded") web application codebases. It works through 30+ vulnerability categories and produces a severity-ranked report with working proof-of-concept exploit commands and step-by-step remediation guidance.
 
+**~80–87% of AI-built applications contain at least one exploitable vulnerability at launch.**
+
 ---
 
 ## What it checks
@@ -55,8 +57,19 @@ A security audit skill for AI-assisted ("vibe-coded") web application codebases.
 - DNS security
 - AI prompt security (CVE-2025-48757 pattern, tables without RLS)
 
-### Platform-specific checks
-Supabase, Firebase, Vercel, Netlify, Next.js, Lovable, Bolt.new, Replit, v0.dev, Cursor, GitHub Copilot, MongoDB, PostgreSQL, Railway, Render, Fly.io, Bubble, Webflow, Framer, and more.
+### 🟣 Platform-specific checks
+
+**AI builders (full-stack):** Lovable, Bolt.new, Replit, v0.dev, Windsurf, Base44, Antigravity, Emergent
+
+**AI code assistants:** Cursor (CVE-2025-54135/54136), GitHub Copilot, Claude Code, Sourcegraph Cody, Tabnine, Gemini Code, Amazon Q, Trae AI, Devin AI, Cline, Augment Code, OpenAI Codex
+
+**Databases:** Supabase, Firebase, MongoDB, PostgreSQL, PlanetScale, Neon, Turso, Upstash
+
+**Hosting:** Vercel, Netlify, Railway, Render, Fly.io
+
+**No-code / Low-code:** Bubble, Webflow, Framer, Retool, Wix Harmony
+
+Each platform section covers the exact misconfiguration patterns that AI tools introduce — for example: Supabase tables without RLS (CVE-2025-48757), Vercel preview deployments leaking production secrets, Cursor's Yolo mode enabling prompt-injection RCE, Firebase Storage rules forgotten while Firestore rules are set, and Render auto-deploy pushing untested code straight to production.
 
 ---
 
@@ -175,11 +188,13 @@ All output files are saved to `_security/` alongside the report.
 ## Sources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [OWASP LLM Top 10 (2025)](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+- [Cloud Security Alliance — Secure Vibe Coding Guide](https://cloudsecurityalliance.org)
 - [vibeappscanner.com](https://vibeappscanner.com)
 - [astoj/vibe-security](https://github.com/astoj/vibe-security)
 - [Replit Vibe Code Security Checklist](https://docs.replit.com/tutorials/vibe-code-security-checklist)
 - [namanyayg security audit prompt](https://gist.github.com/namanyayg/ed12fa79f535d0294f4873be73e7c69b)
-- CVE-2025-48757
+- CVE-2025-48757 · CVE-2025-54135 · CVE-2025-54136
 
 ---
 
