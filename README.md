@@ -65,7 +65,9 @@ A security audit skill for AI-assisted ("vibe-coded") web application codebases.
 
 **Databases:** Supabase, Firebase, MongoDB, PostgreSQL, PlanetScale, Neon, Turso, Upstash
 
-**Hosting:** Vercel, Netlify, Railway, Render, Fly.io
+**Hosting:** Vercel, Netlify, Railway, Render, Fly.io, Cloudflare
+
+**Auth:** NextAuth.js / Auth.js
 
 **No-code / Low-code:** Bubble, Webflow, Framer, Retool, Wix Harmony
 
@@ -191,6 +193,7 @@ All output files are saved to `_security/` alongside the report.
 - [OWASP LLM Top 10 (2025)](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
 - [Cloud Security Alliance — Secure Vibe Coding Guide](https://cloudsecurityalliance.org)
 - [vibeappscanner.com](https://vibeappscanner.com)
+- [vibeappscanner.com — Vibe-Coded App Security Report 2026](https://vibeappscanner.com/blog/vibe-coded-app-security-report-2026)
 - [astoj/vibe-security](https://github.com/astoj/vibe-security)
 - [Replit Vibe Code Security Checklist](https://docs.replit.com/tutorials/vibe-code-security-checklist)
 - [namanyayg security audit prompt](https://gist.github.com/namanyayg/ed12fa79f535d0294f4873be73e7c69b)

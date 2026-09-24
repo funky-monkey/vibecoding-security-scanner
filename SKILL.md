@@ -465,8 +465,8 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] Email confirmation enabled in Auth settings
 - [ ] Password policy configured with minimum requirements
 - [ ] Auth rate limiting enabled
-- [ ] RPC/Edge Functions include `auth.uid()` checks at the top
-- [ ] `SECURITY DEFINER` functions understood and justified
+- [ ] RPC/Edge Functions include `auth.uid()` checks at the top — **unprotected RPCs are a top critical finding** (an RPC callable with the anon key runs its logic with no row filtering, bypassing table RLS entirely); enumerate every `rpc()`-exposed function and confirm it authorizes the caller
+- [ ] `SECURITY DEFINER` functions understood and justified — these run with the definer's privileges and ignore the caller's RLS, so they must enforce authorization in the function body
 - [ ] Rotate keys immediately if service_role was ever exposed
 
 #### PS-FIREBASE — Firebase Projects
@@ -562,6 +562,20 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] TLS termination enabled at edge
 - [ ] WireGuard used for secure remote access to private services
 
+#### PS-CLOUDFLARE — Cloudflare (Workers / Pages / R2 / D1 / KV)
+- [ ] Secrets stored via `wrangler secret put` or dashboard **Secrets** — never as plaintext `[vars]` in `wrangler.toml` (vars are bundled into the deployed Worker and readable)
+- [ ] `wrangler.toml` committed to git contains NO secret values — only non-sensitive config and binding names
+- [ ] `.dev.vars` (local secrets) listed in `.gitignore` — never committed
+- [ ] Worker routes that mutate data verify auth/session on every request — Workers have no built-in auth
+- [ ] R2 buckets not publicly exposed unless intended; public buckets serve over `r2.dev` or a custom domain — confirm no sensitive objects in a public bucket
+- [ ] D1 queries use parameterized bindings (`.bind()`) — never string-concatenated SQL; D1 has no RLS, so enforce access control in the Worker
+- [ ] KV / Durable Object namespaces not used to store unencrypted secrets or PII
+- [ ] CORS on Worker responses restricted to trusted origins — not `Access-Control-Allow-Origin: *` for credentialed requests
+- [ ] Cloudflare Access / Zero Trust used to protect internal or preview endpoints rather than URL obscurity
+- [ ] Pages preview deployments not publicly indexed and not connected to production data stores
+- [ ] Rate limiting / WAF rules enabled on public-facing Workers and Pages Functions
+- [ ] API tokens scoped to minimum permissions (avoid Global API Key); rotate if ever exposed
+
 #### PS-BUBBLE — Bubble Apps
 - [ ] Privacy rules configured for ALL data types (not just some)
 - [ ] Privacy rules tested as: logged-out user, regular user, and admin
@@ -618,6 +632,7 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] Custom domain configured with HTTPS for production
 - [ ] Authentication implemented server-side — not relying on obscurity
 - [ ] Deployed Repl logs monitored for errors and anomalies
+- [ ] **Agent write scope to production data restricted** — in July 2025 the Replit Agent deleted a production database during a code freeze; never let an AI agent hold unsupervised write/delete access to prod (see ADV11 LLM06 — Excessive Agency)
 
 #### PS-V0 — v0.dev Components
 - [ ] All v0-generated components reviewed for `dangerouslySetInnerHTML` usage
@@ -628,6 +643,7 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] Authentication tokens stored in secure cookies, not localStorage
 
 #### PS-WINDSURF — Windsurf / Cascade Projects
+- [ ] **Keep the IDE patched** — Windsurf is Electron/Chromium-based and inherited ~94 Chromium CVEs across 2024–2025 (memory corruption, sandbox escape, RCE); running an outdated build is exploitable via malicious web content rendered in the app
 - [ ] Cascade agent NOT granted access to production systems or live credentials
 - [ ] All Cascade multi-step flows reviewed before execution
 - [ ] MCP servers audited — only trusted, necessary servers installed
@@ -722,6 +738,18 @@ Detect which platforms/tools the project uses (check `package.json`, config file
 - [ ] `next.config.js` security headers configured
 - [ ] `productionBrowserSourceMaps: false` in `next.config.js`
 - [ ] `dangerouslySetInnerHTML` usages audited and all use DOMPurify
+
+#### PS-NEXTAUTH — NextAuth.js / Auth.js
+- [ ] `NEXTAUTH_SECRET` (or `AUTH_SECRET`) set to a strong random value in every environment — a missing/weak secret makes session JWTs forgeable
+- [ ] `NEXTAUTH_SECRET` stored in server-side env vars only — never prefixed `NEXT_PUBLIC_`, never committed
+- [ ] Session strategy chosen deliberately: `jwt` (stateless, cannot be revoked server-side) vs `database` (revocable) — high-security apps prefer database sessions
+- [ ] OAuth provider `clientSecret` values are server-side env vars, never in client bundles
+- [ ] Callback / redirect URLs validated — the `redirect` callback returns only same-origin or explicitly allowlisted URLs (prevents open redirect via `callbackUrl`)
+- [ ] `NEXTAUTH_URL` set to the canonical production URL so callbacks are not hijackable
+- [ ] `signIn` / `session` / `jwt` callbacks do not leak sensitive fields (access tokens, provider secrets) into the client-visible session object
+- [ ] Session cookies keep NextAuth defaults: `httpOnly`, `Secure`, `SameSite=Lax` — not weakened to allow JS access
+- [ ] Custom Credentials provider hashes/verifies passwords with bcrypt/argon2 and applies rate limiting (NextAuth does not rate-limit by default)
+- [ ] NextAuth/Auth.js kept up to date — pin and patch promptly
 
 ---
 
@@ -923,24 +951,24 @@ Rules for populating the todo list:
 ---
 
 *Generated by [vibecoding-security-scanner](https://github.com/funky-monkey/vibecoding-security-scanner)*
-*Sources: OWASP Top 10 · OWASP LLM Top 10 (2025) · Cloud Security Alliance Secure Vibe Coding Guide · vibeappscanner.com · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757 · CVE-2025-54135 · CVE-2025-54136*
+*Sources: OWASP Top 10 · OWASP LLM Top 10 (2025) · Cloud Security Alliance Secure Vibe Coding Guide · vibeappscanner.com · vibeappscanner.com Vibe-Coded App Security Report 2026 · astoj/vibe-security · Replit Vibe Code Security Checklist · namanyayg security audit prompt · CVE-2025-48757 · CVE-2025-54135 · CVE-2025-54136*
 
 ---
 
 ## APPENDIX: Platform Checklist Coverage Reference
 
-This skill incorporates checks from vibeappscanner.com's full library of 55 platform-specific checklists. When the scanned codebase uses one of these platforms, apply the corresponding checks from the PS-* sections above AND note the platform in the report header.
+This skill incorporates checks from vibeappscanner.com's full library of platform-specific checklists (56+ published). When the scanned codebase uses one of these platforms, apply the corresponding checks from the PS-* sections above AND note the platform in the report header.
 
 | Category | Platforms Covered |
 |----------|-------------------|
 | AI builders (full-stack) | Lovable, Bolt.new, Replit, v0.dev, Windsurf, Base44, Antigravity, Emergent |
 | AI code assistants | GitHub Copilot, Claude Code, Cursor, Sourcegraph Cody, Tabnine, Gemini Code, Amazon Q, Cline, Augment Code, Trae AI, Devin AI, OpenAI Codex |
 | Databases | Supabase, Firebase, MongoDB, PostgreSQL, PlanetScale, Neon, Turso, Upstash |
-| Hosting | Vercel, Netlify, Railway, Render, Fly.io |
+| Hosting | Vercel, Netlify, Railway, Render, Fly.io, Cloudflare |
+| Auth | NextAuth.js / Auth.js |
 | No-code/Low-code | Bubble, Webflow, Framer, Retool, Wix Harmony, Softr, ToolJet, DronaHQ, UI Bakery, Airtable |
 | Emerging/specialized | Hostinger Horizons, SuperNinja, Tempo Labs, Firebase Studio, FlutterFlow, Glide, Xano, Appwrite, Convex, VibeSDK, Jotform Apps, Orchids |
 
-**Formal checklists not yet published (listed on vibeappscanner.com but return 404 — security Q&A available):**
-Trae AI, Devin AI, OpenAI Codex, Augment Code, Emergent, Wix Harmony, Hostinger Horizons, SuperNinja, Firebase Studio, Tempo Labs, Gemini Code, Softr, ToolJet, DronaHQ, Jotform Apps, UI Bakery, Orchids, VibeSDK, Amazon Q Developer, Cline, Airtable, Appwrite, Convex, Xano, FlutterFlow, Glide
+All platforms listed above now have published checklists on vibeappscanner.com. Note that many of the emerging/specialized checklists currently render a generic template — the PS-* sections above and PS-AI-ASSISTANTS cover the tool-specific risks in more depth.
 
-**Key stat:** ~80–87% of AI-built applications contain at least one exploitable vulnerability at launch (vibeappscanner.com research, 2026).
+**Key stat:** In vibeappscanner.com's 2026 report (1,215 AI-built apps), 10.4% had at least one critical vulnerability and 31.1% had a critical-or-high issue. Supabase apps were worst hit — 39.3% (141/359) leaked data via missing/broken RLS. Security-header gaps were near-universal: 93.6% missing Cross-Origin-Resource-Policy, 78.4% missing CSP, 70.6% missing X-Frame-Options. (Earlier scans placed the "at least one exploitable issue" rate as high as ~80–87%.)
